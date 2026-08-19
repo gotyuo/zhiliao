@@ -35,7 +35,23 @@ docker compose ps
 | `${DATA_ROOT}/mysql` | `/var/lib/mysql` | MySQL 数据库数据文件 |
 | `${DATA_ROOT}/backups` | `/app/runtime/backups`、`/backups` | 自动生成的 `sql.gz` 备份与手动备份请求文件 |
 
-备份服务启动后会立即创建首份备份，并根据 `BACKUP_INTERVAL_HOURS` 定期执行。保留期由 `BACKUP_RETENTION_DAYS` 控制。管理员可以在“备份管理”中申请即时备份和下载已登记备份。若需恢复，应先停止应用，再将备份文件解压后使用 MySQL 客户端导入；恢复前必须额外保存当前数据目录副本。
+备份服务启动后会立即创建首份备份，并根据 `BACKUP_INTERVAL_HOURS` 定期执行。保留期由 `BACKUP_RETENTION_DAYS` 控制；管理员也可以在“备份管理”中启停策略、修改频率及保留天数，或申请即时备份和下载已登记备份。
+
+### 数据库恢复操作
+
+恢复会覆盖当前业务数据库，必须由具备数据库运维权限的人员操作。先停止全部服务，并将现有 MySQL 数据目录完整复制到安全位置；再启动 MySQL 服务、从指定压缩备份导入、最后启动应用和备份服务。以下示例中的文件名应替换为实际备份文件名：
+
+```bash
+docker compose down
+cp -a "${DATA_ROOT}/mysql" "${DATA_ROOT}/mysql-before-restore-$(date +%Y%m%d%H%M%S)"
+docker compose up -d mysql
+gzip -dc "${DATA_ROOT}/backups/pain-clinic_YYYYMMDDTHHMMSSZ.sql.gz" | \
+  docker compose exec -T mysql sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
+docker compose up -d
+docker compose ps
+```
+
+导入命令返回后，应由管理员登录系统抽查患者、排班和备份记录，再决定是否恢复正常业务访问。严禁将真实生产备份文件上传至公共代码仓库、即时通信群或未授权存储位置。
 
 ## Excel 使用
 
@@ -43,12 +59,13 @@ docker compose ps
 
 ## GitHub 同步
 
-在完成 GitHub 登录或提供目标仓库地址后，可执行以下命令将项目推送至组织仓库：
+当前公开代码仓库为 [gotyuo/zhiliao](https://github.com/gotyuo/zhiliao)。该项目的托管工作区保留了内部 `origin` 远程，因此同步到 GitHub 时使用独立的 `github` 远程，避免误改托管远程地址。首次关联或在新的工作副本中同步可执行：
 
 ```bash
-git remote add origin https://github.com/<组织>/<仓库>.git
-git branch -M main
-git push -u origin main
+git remote add github https://github.com/gotyuo/zhiliao.git
+git push -u github main
 ```
+
+后续将本地已提交的变更推送到公开仓库使用 `git push github main`；拉取远程变更前应先确认本地没有未提交内容，再执行 `git pull --ff-only github main`。若仓库 URL 已配置，可跳过 `git remote add` 步骤。
 
 `.env`、宿主机 `data/` 目录、数据库密码与备份文件不得提交到 GitHub。部署前请确认 `.gitignore` 已覆盖这些私密资源。
