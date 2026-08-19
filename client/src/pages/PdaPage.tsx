@@ -1,0 +1,14 @@
+import DashboardLayout from "@/components/DashboardLayout";
+import QrScanner from "@/components/QrScanner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
+import { CheckCircle2, ClipboardCheck, UserRound } from "lucide-react";
+import { useState } from "react";
+
+export default function PdaPage() {
+  const [payload, setPayload] = useState(""); const inspect = trpc.pda.verify.useQuery({ payload }, { enabled: Boolean(payload), retry: false }); const utils = trpc.useUtils(); const complete = trpc.pda.complete.useMutation({ onSuccess: () => { utils.pda.verify.invalidate(); utils.clinic.dashboard.invalidate(); } });
+  return <DashboardLayout><section className="max-w-3xl mx-auto"><div className="text-center"><p className="text-[#ad8240] text-xs font-semibold tracking-[0.16em]">MOBILE TREATMENT VERIFICATION</p><h1 className="mt-2 text-3xl font-serif">PDA治疗核销</h1><p className="mt-2 text-sm text-[#71847f]">扫描患者专属二维码，确认本次治疗已由当前登录医生执行。</p></div><Card className="mt-7 rounded-[1.5rem] border-[#dbe9e3] shadow-none"><CardContent className="p-5 sm:p-7"><QrScanner label="扫描患者治疗二维码" onResult={setPayload} autoStart />{inspect.isFetching && <p className="py-6 text-center text-sm text-[#71847f]">正在核验患者及待执行治疗…</p>}{inspect.error && <p className="mt-5 rounded-xl bg-[#f9ecea] p-4 text-sm text-[#9f514a]">{inspect.error.message}</p>}{inspect.data && <div className="mt-6 rounded-2xl bg-[#f2f8f5] p-5"><div className="flex gap-3"><span className="h-11 w-11 shrink-0 rounded-full bg-[#dcefe7] grid place-items-center"><UserRound className="h-5 w-5 text-[#12635b]" /></span><div><p className="font-serif text-xl">{inspect.data.patient.fullName}</p><p className="mt-1 text-sm text-[#71847f]">{inspect.data.patient.patientNo} · {inspect.data.project.name}</p></div></div><div className="mt-5 grid grid-cols-2 gap-3 text-sm"><div className="rounded-xl bg-white p-3"><p className="text-[#7b908a]">排班医生</p><p className="mt-1 font-medium">{inspect.data.doctor.title ?? "医生"}</p></div><div className="rounded-xl bg-white p-3"><p className="text-[#7b908a]">排班时间</p><p className="mt-1 font-medium">{inspect.data.schedule.scheduledAt.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</p></div></div>{complete.isSuccess ? <div className="mt-5 flex items-center gap-2 text-[#147060]"><CheckCircle2 className="h-5 w-5" />本次治疗已完成核销。</div> : <Button className="mt-5 h-12 w-full rounded-xl bg-[#0e5a55] hover:bg-[#084842]" disabled={complete.isPending} onClick={() => complete.mutate({ scheduleId: inspect.data.schedule.id })}><ClipboardCheck className="h-4 w-4" />{complete.isPending ? "正在确认…" : "确认完成本次治疗"}</Button>}{complete.error && <p className="mt-3 text-sm text-destructive">{complete.error.message}</p>}</div>}</CardContent></Card></section></DashboardLayout>;
+}
+

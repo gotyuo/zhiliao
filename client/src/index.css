@@ -1,4 +1,12 @@
 @import "tailwindcss";
+
+@theme inline {
+  --font-serif: "Noto Serif SC", "Songti SC", serif;
+}
+
+html { background: #f4f7f6; }
+body { font-family: "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif; }
+.clinic-grid { background-image: radial-gradient(circle at 1px 1px, rgba(187, 217, 207, 0.16) 1px, transparent 0); background-size: 22px 22px; }
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));

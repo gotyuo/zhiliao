@@ -1,0 +1,61 @@
+services:
+  database:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-pain_clinic}
+      MYSQL_USER: ${MYSQL_USER:-clinic_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?请在 .env 中设置 MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请在 .env 中设置 MYSQL_ROOT_PASSWORD}
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - ${DATA_ROOT:-./data}/mysql:/var/lib/mysql
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DATABASE_URL: mysql://${MYSQL_USER:-clinic_app}:${MYSQL_PASSWORD}@database:3306/${MYSQL_DATABASE:-pain_clinic}
+      JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET}
+      BACKUP_DIR: /app/runtime/backups
+      BACKUP_ENABLED: ${BACKUP_ENABLED:-true}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:?请在 .env 中设置管理员账号}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?请在 .env 中设置管理员密码}
+    command: ["sh", "-c", "pnpm drizzle-kit migrate && node dist/index.js"]
+    ports:
+      - "${APP_PORT:-8080}:3000"
+    volumes:
+      - ${DATA_ROOT:-./data}/backups:/app/runtime/backups
+
+  backup:
+    image: mysql:8.4
+    restart: unless-stopped
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      MYSQL_HOST: database
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-pain_clinic}
+      MYSQL_USER: ${MYSQL_USER:-clinic_app}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      BACKUP_ENABLED: ${BACKUP_ENABLED:-true}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+    entrypoint: ["/bin/sh", "/scripts/backup-loop.sh"]
+    volumes:
+      - ${DATA_ROOT:-./data}/backups:/backups
+      - ./docker/backup-loop.sh:/scripts/backup-loop.sh:ro
+

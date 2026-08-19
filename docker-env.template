@@ -1,0 +1,19 @@
+# Docker 运行端口与持久化数据根目录。Windows 示例：DATA_ROOT=D:/pain-clinic-data
+APP_PORT=8080
+DATA_ROOT=./data
+
+MYSQL_DATABASE=pain_clinic
+MYSQL_USER=clinic_app
+MYSQL_PASSWORD=请替换为高强度数据库密码
+MYSQL_ROOT_PASSWORD=请替换为高强度数据库根密码
+JWT_SECRET=请替换为至少32字符随机密钥
+
+# 首次部署时创建的本地管理员。登录后应立即新建正式管理员、医生、前台账号。
+BOOTSTRAP_ADMIN_USERNAME=admin
+BOOTSTRAP_ADMIN_PASSWORD=请替换为至少8位的高强度管理员密码
+
+# 备份服务：每 N 小时执行一次，自动删除保留天数之外的旧备份。
+BACKUP_ENABLED=true
+BACKUP_INTERVAL_HOURS=24
+BACKUP_RETENTION_DAYS=30
+
